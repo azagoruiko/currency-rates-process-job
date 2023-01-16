@@ -14,6 +14,8 @@ WORKDIR /opt
 RUN tar -xzf /app/apache-hive-1.2.2-bin.tar.gz
 #RUN cp /opt/apache-hive-3.1.3-bin/lib/hive*.jar /opt/spark/jars/
 
+#RUN wget https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.6.7.1/jackson-databind-2.6.7.1.jar
+#RUN cp jackson-databind-2.6.7.1.jar /opt/spark/jars/
 
 #COPY statements-ingest-spark.json  /app/statements-ingest-spark.json
 COPY bin/run.sh  /app/run.sh
@@ -24,3 +26,4 @@ ENV PATH="${PATH}:/opt/spark/bin:/opt/apache-hive-1.2.2-bin/bin"
 
 WORKDIR /app
 COPY target/sparkjob-jar-with-dependencies.jar /app/sparkjob.jar
+COPY target/sparkjob.jar /app/sparkjob-thin.jar

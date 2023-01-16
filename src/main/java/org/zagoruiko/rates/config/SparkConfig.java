@@ -31,12 +31,11 @@ public class SparkConfig {
                 .config("spark.driver.userClassPathFirst", false)
                 .getOrCreate();
 
-        spark.conf().set("spark.executor.userClassPathFirst", "true");
-
         SparkContext sparkContext = spark.sparkContext();
         JavaSparkContext jsc = new JavaSparkContext(sparkContext);
         if (System.getenv("LOCAL_MODE") != null) {
-            jsc.addJar("local:/opt/spark/jars/gson-2.8.5.jar,/opt/apache-hive-3.1.3-bin/lib/hive*.jar,/opt/apache-hive-3.1.3-bin/lib/*sql*.jar,/opt/apache-hive-3.1.3-bin/lib/datanucleus*.jar,/opt/apache-hive-3.1.3-bin/lib/Hikari*.jar,/opt/apache-hive-3.1.3-bin/lib/javax*.jar");
+            //spark.conf().set("spark.executor.userClassPathFirst", "false");
+            //jsc.addJar("local:/opt/spark/jars/gson-2.8.5.jar,/opt/apache-hive-3.1.3-bin/lib/hive*.jar,/opt/apache-hive-3.1.3-bin/lib/*sql*.jar,/opt/apache-hive-3.1.3-bin/lib/datanucleus*.jar,/opt/apache-hive-3.1.3-bin/lib/Hikari*.jar,/opt/apache-hive-3.1.3-bin/lib/javax*.jar");
         }
 
         org.apache.hadoop.conf.Configuration conf=jsc.hadoopConfiguration();

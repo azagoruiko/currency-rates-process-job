@@ -1,7 +1,5 @@
 package org.zagoruiko.rates.util;
 
-import com.amazonaws.services.s3.AmazonS3;
-
 import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.*;

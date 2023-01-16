@@ -33,7 +33,7 @@ public class SparkServiceImpl implements SparkService {
 
     @Override
     public void initInvestingTables() {
-        spark.sql("DROP TABLE IF EXISTS investing_currencies");
+        //spark.sql("DROP TABLE IF EXISTS investing_currencies");
         //"Date","Price","Open","High","Low","Vol.","Change %"
         spark.sql("CREATE EXTERNAL TABLE IF NOT EXISTS investing_currencies " +
                 "(Date STRING,Price FLOAT,Open FLOAT,High FLOAT,Low FLOAT,Vol STRING,Change STRING) " +
@@ -58,8 +58,8 @@ public class SparkServiceImpl implements SparkService {
 
     @Override
     public Dataset<Row> selectRate() {
-        return spark.sql("SELECT asset, quote, date_trunc(to_date(timestamp, 'yyyy-MM-dd'), 'YEAR') year, max(timestamp) max_ts, min(Timestamp) min_ts, min(Close) min_close, max(Close) max_close " +
-                "FROM binance_currencies group by asset, quote, date_trunc(to_date(timestamp, 'yyyy-MM-dd'), 'YEAR')").select(
+        return spark.sql("SELECT asset, quote, year(to_date(timestamp, 'yyyy-MM-dd')) year, max(to_date(timestamp, 'yyyy-MM-dd')) max_ts, min(to_date(timestamp, 'yyyy-MM-dd')) min_ts, min(Close) min_close, max(Close) max_close " +
+                "FROM binance_currencies group by asset, quote, year(to_date(timestamp, 'yyyy-MM-dd'))").select(
                 functions.col("Asset"),
                 functions.col("Quote"),
                 functions.col("year"),
@@ -72,8 +72,8 @@ public class SparkServiceImpl implements SparkService {
 
     @Override
     public Dataset<Row> selectInvestingRate() {
-        return spark.sql("SELECT asset, quote, date_trunc(to_date(Date, 'MM/dd/yyyy'), 'YEAR') year, max(Date) max_ts, min(Date) min_ts, min(Price) min_close, max(Price) max_close " +
-                "FROM investing_currencies group by asset, quote, date_trunc(to_date(Date, 'MM/dd/yyyy'), 'YEAR')").select(
+        return spark.sql("SELECT asset, quote, year(to_date(Date, 'MM/dd/yyyy')) year, max(to_date(Date, 'MM/dd/yyyy')) max_ts, min(to_date(Date, 'MM/dd/yyyy')) min_ts, min(Price) min_close, max(Price) max_close " +
+                "FROM investing_currencies group by asset, quote, year(to_date(Date, 'MM/dd/yyyy'))").select(
                 functions.col("Asset"),
                 functions.col("Quote"),
                 functions.col("year"),
@@ -86,7 +86,7 @@ public class SparkServiceImpl implements SparkService {
 
     @Override
     public Dataset<Row> selectInvestingRateAll() {
-        return spark.sql("SELECT *, to_date(Date, 'MM/dd/yyyy') the_date, date_trunc('YEAR', to_date(Date, 'MM/dd/yyyy')) year " +
+        return spark.sql("SELECT *, to_date(Date, 'MM/dd/yyyy') the_date, year(to_date(Date, 'MM/dd/yyyy')) year " +
                 "FROM investing_currencies").select(
                 functions.col("Asset"),
                 functions.col("Quote"),
