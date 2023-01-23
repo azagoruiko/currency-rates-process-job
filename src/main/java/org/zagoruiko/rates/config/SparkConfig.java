@@ -25,6 +25,7 @@ public class SparkConfig {
         SparkSession.Builder builder = SparkSession.builder();
         if (System.getenv("LOCAL_MODE") != null) {
                     builder.master("local[*]").enableHiveSupport();
+                    builder.config("spark.driver.maxResultSize", 0);
         }
         SparkSession spark = builder
                 .appName("Rates_Update")

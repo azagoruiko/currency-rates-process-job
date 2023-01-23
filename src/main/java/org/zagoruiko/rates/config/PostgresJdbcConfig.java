@@ -53,7 +53,7 @@ public class PostgresJdbcConfig {
         return dataSource;
     }
 
-    @Bean
+    @Bean(name = "postgresJdbcTemplate")
     public JdbcTemplate jdbcTemplate() {
         return new JdbcTemplate(this.getDataSource());
     }

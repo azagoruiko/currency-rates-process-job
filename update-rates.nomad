@@ -1,15 +1,15 @@
-job "rates-update" {
+job "rates-process" {
   datacenters = ["home"]
   type        = "batch"
 
   periodic {
-    cron      = "10 20 * * * *"
+    cron      = "20 19 * * * *"
     prohibit_overlap = true
   }
 
-  group "rates-update-group" {
+  group "rates-process-group" {
     count = 1
-    task "rates-update-task" {
+    task "rates-process-task" {
       driver = "docker"
       template {
         data = <<EOH
@@ -26,11 +26,11 @@ EOH
         network_mode = "host"
         extra_hosts = ["nuc2:10.8.0.8", "nuc3:10.8.0.6", "nuc1:10.8.0.9", "vm1:10.8.0.2"]
         privileged = true
-        image = "127.0.0.1:9999/docker/rates-update:0.0.97"
+        image = "127.0.0.1:9999/docker/rates-update:0.1.1"
         command = "bash"
         args = [
           "/app/run.sh",
-          "0.0.97",
+          "0.1.1",
         ]
       }
 
