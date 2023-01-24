@@ -164,6 +164,7 @@ public class SparkServiceImpl implements SparkService {
         for (SwappingTriplet swapper : new SwappingTriplet[]{
                 new SwappingTriplet("SOL", "UAH", "USD"),
                 new SwappingTriplet("BTC", "UAH", "USD"),
+                new SwappingTriplet("BTC", "CZK", "USD"),
         }) {
             Dataset swapped = spark.sql("SELECT src.asset, trg.quote, src.date, trg.rate * src.rate as czk_uah " +
                     "FROM mycurrencies_swapped src " +
@@ -181,6 +182,7 @@ public class SparkServiceImpl implements SparkService {
                 new String[]{"BTC", "USD"},
                 new String[]{"BTC", "UAH"},
                 new String[]{"BTC", "EUR"},
+                new String[]{"BTC", "CZK"},
                 new String[]{"EUR", "CZK"},
                 new String[]{"EUR", "UAH"},
         }) {
