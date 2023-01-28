@@ -1,11 +1,8 @@
 package org.zagoruiko.rates.service;
 
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.*;
-import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.expressions.Window;
 import org.apache.spark.sql.expressions.WindowSpec;
-import org.apache.spark.sql.types.StructType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class SparkServiceImpl implements SparkService {
+public class RatesSparkServiceImpl implements RatesSparkService {
 
     private SparkSession spark;
     @Autowired

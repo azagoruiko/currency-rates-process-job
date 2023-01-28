@@ -40,15 +40,15 @@ public class PostgresDatasetWriter implements DatasetWriter {
         jdbcProperties.setProperty("truncate", "true");
         jdbcProperties.setProperty("batchsize", "10000");
         jdbcProperties.setProperty("isolationLevel", "NONE");
-        dataset.select(
-                col("asset"),
-                col("quote"),
-                col("date"),
-                col("rate")
-        )
-        .write()
+//        dataset.select(
+//                col("asset"),
+//                col("quote"),
+//                col("date"),
+//                col("rate")
+//        )
+        dataset.write()
         .mode(SaveMode.Overwrite)
-        .jdbc(this.jdbcUrl, this.jdbcTable, jdbcProperties);
+        .jdbc(this.jdbcUrl, jdbcTable, jdbcProperties);
 
     }
 }

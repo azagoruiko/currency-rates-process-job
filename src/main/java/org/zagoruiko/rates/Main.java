@@ -1,19 +1,20 @@
 package org.zagoruiko.rates;
 
 import org.apache.spark.sql.*;
-import org.codehaus.jackson.map.JsonMappingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.zagoruiko.rates.service.SparkService;
+import org.zagoruiko.rates.client.BinanceClient;
+import org.zagoruiko.rates.client.dto.ExchangeInfoDTO;
+import org.zagoruiko.rates.client.dto.SymbolDTO;
+import org.zagoruiko.rates.service.RatesSparkService;
+import org.zagoruiko.rates.service.TradeHistorySparkService;
 import org.zagoruiko.rates.writer.DatasetWriter;
 
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.text.Format;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -42,15 +43,28 @@ public class Main {
     @Autowired
     @Qualifier("postgres.jdbc.password")
     private String jdbcPassword;
-    private SparkService sparkService;
+    private RatesSparkService ratesSparkService;
+    private TradeHistorySparkService tradeHistorySparkService;
     private SparkSession spark;
 
     private DatasetWriter ratesWriter;
     private JdbcTemplate jdbcTemplate;
 
+    private BinanceClient binanceClient;
+
     @Autowired
-    public void setSparkService(SparkService sparkService) {
-        this.sparkService = sparkService;
+    public void setSparkService(RatesSparkService ratesSparkService) {
+        this.ratesSparkService = ratesSparkService;
+    }
+
+    @Autowired
+    public void setBinanceClient(BinanceClient binanceClient) {
+        this.binanceClient = binanceClient;
+    }
+
+    @Autowired
+    public void setTradeHistorySparkService(TradeHistorySparkService tradeHistorySparkService) {
+        this.tradeHistorySparkService = tradeHistorySparkService;
     }
 
     @Autowired
@@ -70,16 +84,6 @@ public class Main {
         this.spark = sparkSession;
     }
     public static void main(String[] args) throws IOException, ParseException {
-        System.out.println(String.join(",", args));
-
-        ClassLoader cl = ClassLoader.getSystemClassLoader();
-
-        URL[] urls = ((URLClassLoader)cl).getURLs();
-
-        for(URL url: urls){
-            System.out.println(url.getFile());
-        }
-
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
         context.scan(Main.class.getPackage().getName());
         context.refresh();
@@ -87,13 +91,26 @@ public class Main {
     }
 
     public void run(String[] args) {
-        sparkService.initCurrenciesTables();
-        sparkService.initInvestingTables();
-        sparkService.repairCurrenciesTables();
-        sparkService.repairInvestingTables();
+        ExchangeInfoDTO exchangeInfo = this.binanceClient.getExchangeInfo();
+
+        Dataset<Row> symbols = spark.createDataFrame(exchangeInfo.getSymbols(), SymbolDTO.class);
+        ratesWriter.write(tradeHistorySparkService.loadTradeHistory(symbols), "trades.trade_history");
+        ratesWriter.write(tradeHistorySparkService.loadPortfolio(symbols, new String[0]), "trades.portfolio_total");
+        ratesWriter.write(tradeHistorySparkService.loadPortfolio(symbols, "exchange"), "trades.portfolio_by_exchange");
+        ratesWriter.write(tradeHistorySparkService.loadPortfolio(symbols,
+                functions.date_trunc("month", functions.col("date")).as("date")), "trades.portfolio_by_date");
+
+//        tradeHistorySparkService.loadTradeHistory(symbols, "exchange", "date");
+//        ratesWriter.write(tradeHistorySparkService.loadTradeHistory(symbols), "trades.portfolio_by_exchange_date");
+
+        System.exit(0);
+        ratesSparkService.initCurrenciesTables();
+        ratesSparkService.initInvestingTables();
+        ratesSparkService.repairCurrenciesTables();
+        ratesSparkService.repairInvestingTables();
 
 
-        Dataset<Row> united = sparkService.processCurrencies();
+        Dataset<Row> united = ratesSparkService.processCurrencies();
         ratesWriter.write(united, "expenses.rates");
 
         united.createOrReplaceTempView("mycurrencies3");
