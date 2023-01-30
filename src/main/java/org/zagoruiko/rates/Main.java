@@ -91,7 +91,26 @@ public class Main {
     }
 
     public void run(String[] args) {
+        ratesSparkService.initCryptoRates();
+        Dataset<Row> cryptoCurrencies = this.ratesSparkService.processExchangeCurrencies();
+        ratesWriter.write(cryptoCurrencies, "trades.rates");
+
         ExchangeInfoDTO exchangeInfo = this.binanceClient.getExchangeInfo();
+
+        //System.exit(0);
+        ratesSparkService.initCurrenciesTables();
+        ratesSparkService.initInvestingTables();
+        ratesSparkService.repairCurrenciesTables();
+        ratesSparkService.repairInvestingTables();
+
+
+        Dataset<Row> united = ratesSparkService.processCurrencies("USD", "EUR", "UAH", "CZK", "BTC");
+//        united.filter(functions.col("asset").equalTo("UAH")
+//                        .and(functions.col("quote").equalTo("BTC"))
+//                        .and(functions.col("date").equalTo("2022-05-04"))
+//        ).show();
+//        System.exit(0);
+        ratesWriter.write(united, "expenses.rates");
 
         Dataset<Row> symbols = spark.createDataFrame(exchangeInfo.getSymbols(), SymbolDTO.class);
         ratesWriter.write(tradeHistorySparkService.loadTradeHistory(symbols), "trades.trade_history");
@@ -99,19 +118,6 @@ public class Main {
         ratesWriter.write(tradeHistorySparkService.loadPortfolio(symbols, "exchange"), "trades.portfolio_by_exchange");
         ratesWriter.write(tradeHistorySparkService.loadPortfolio(symbols,
                 functions.date_trunc("month", functions.col("date")).as("date")), "trades.portfolio_by_date");
-
-//        tradeHistorySparkService.loadTradeHistory(symbols, "exchange", "date");
-//        ratesWriter.write(tradeHistorySparkService.loadTradeHistory(symbols), "trades.portfolio_by_exchange_date");
-
-        System.exit(0);
-        ratesSparkService.initCurrenciesTables();
-        ratesSparkService.initInvestingTables();
-        ratesSparkService.repairCurrenciesTables();
-        ratesSparkService.repairInvestingTables();
-
-
-        Dataset<Row> united = ratesSparkService.processCurrencies();
-        ratesWriter.write(united, "expenses.rates");
 
         united.createOrReplaceTempView("mycurrencies3");
         this.spark.sql("SELECT asset, quote, max(date) max_date, min(date) min_date, max(rate) max_rate, min(rate) min_rate " +

@@ -9,7 +9,11 @@ public interface RatesSparkService {
 
     void initCurrenciesTables();
 
+    void initCryptoRates();
+
     void initInvestingTables();
+
+    void repairCryptoRatesTables();
 
     void repairCurrenciesTables();
 
@@ -23,7 +27,11 @@ public interface RatesSparkService {
 
     Dataset<Row> selectInvestingOverUSDTRate();
 
-    Dataset processCurrencies();
+    Dataset<Row> selectCryptoRates();
+
+    Dataset processCurrencies(String ... currencies);
+
+    Dataset processExchangeCurrencies();
 
     Date selectMaxDate(String source, String asset, String quote);
 }
