@@ -143,10 +143,23 @@ public class TradeHistorySparkServiceImpl implements TradeHistorySparkService {
     }
 
     @Override
+    public Dataset<Row> loadMaxRates(Dataset<Row> rates) {
+        rates.createOrReplaceTempView("m_rates");
+
+        return spark.sql("SELECT mr.asset asset, mr.quote quote, mr.date as date, r.rate rate FROM\n" +
+                "(SELECT MAX(date) as date, asset, quote FROM m_rates\n" +
+                "GROUP BY asset, quote) mr\n" +
+                "JOIN m_rates r ON r.asset = mr.asset AND r.quote = mr.quote AND mr.date = r.date");
+    }
+    @Override
     public Dataset<Row> loadTradeHistory(Dataset<Row> symbols, Dataset<Row> rates) {
         Dataset<Row> binanceTrades = this.loadBinanceTradeHistory(symbols);
         Dataset<Row> exmoTrades = this.loadExmoTradeHistory();
         Dataset<Row> trades = binanceTrades.union(exmoTrades);
+
+        Dataset<Row> maxRates = loadMaxRates(rates);
+        maxRates.createOrReplaceTempView("m_rates");
+
         trades
                 .withColumnRenamed("date", "t_date")
                 .createOrReplaceTempView("trades");
@@ -171,30 +184,19 @@ public class TradeHistorySparkServiceImpl implements TradeHistorySparkService {
                 "t.balance_asset, " +
                 "t.balance_quote, " +
                 "rb.r_rate as btc_rate, " +
-                "ru.r_rate as usdt_rate " +
+                "ru.r_rate as usdt_rate, " +
+                "CASE WHEN t.quoteAsset = 'BTC' THEN t.balance_quote ELSE t.balance_asset * COALESCE(rb.r_rate, 1) END as btc_balance_quote, " +
+                "CASE WHEN t.quoteAsset = 'USDT' THEN t.balance_quote ELSE t.balance_asset * COALESCE(ru.r_rate, 1) END as usdt_balance_quote, " +
+                "CASE WHEN t.quoteAsset = 'BTC' THEN t.total_quote_spent ELSE t.total_asset_purchased * COALESCE(rb.r_rate, 1)END as btc_total_quote_spent, " +
+                "CASE WHEN t.quoteAsset = 'USDT' THEN t.total_quote_spent ELSE t.total_asset_purchased * COALESCE(ru.r_rate, 1)END as usdt_total_quote_spent, " +
+                "CASE WHEN t.quoteAsset = 'BTC' THEN t.total_quote_returned ELSE t.total_asset_sold * COALESCE(rb.r_rate, 1) END as btc_total_quote_returned, " +
+                "CASE WHEN t.quoteAsset = 'USDT' THEN t.total_quote_returned ELSE t.total_asset_sold * COALESCE(ru.r_rate, 1) END as usdt_total_quote_returned " +
                 " FROM trades t " +
                 "LEFT JOIN rates rb " +
                 "ON rb.r_date = t.t_date AND rb.quote = 'BTC' AND rb.asset = t.baseAsset " +
                 "LEFT JOIN rates ru " +
                 "ON ru.r_date = t.t_date AND ru.quote = 'USDT' AND ru.asset = t.baseAsset "
-        ).withColumn("btc_balance_asset",
-                        functions.col("balance_asset")
-                                .multiply(functions.col("btc_rate")))
-            .withColumn("usdt_balance_asset",
-                    functions.col("balance_asset")
-                            .multiply(functions.col("usdt_rate")))
-            .withColumn("btc_total_asset_purchased",
-                    functions.col("total_asset_purchased")
-                            .multiply(functions.col("btc_rate")))
-            .withColumn("usdt_total_asset_purchased",
-                    functions.col("total_asset_purchased")
-                            .multiply(functions.col("usdt_rate")))
-            .withColumn("btc_total_asset_sold",
-                    functions.col("total_asset_sold")
-                            .multiply(functions.col("btc_rate")))
-            .withColumn("usdt_total_asset_sold",
-                    functions.col("total_asset_sold")
-                            .multiply(functions.col("usdt_rate")))
+        )
         .select(
                 functions.col("exchange"),
                 functions.col("date"),
@@ -212,103 +214,13 @@ public class TradeHistorySparkServiceImpl implements TradeHistorySparkService {
                 functions.col("price"),
                 functions.col("btc_rate"),
                 functions.col("usdt_rate"),
-                functions.col("btc_balance_asset"),
-                functions.col("usdt_balance_asset"),
-                functions.col("btc_total_asset_purchased"),
-                functions.col("usdt_total_asset_purchased"),
-                functions.col("btc_total_asset_sold"),
-                functions.col("usdt_total_asset_sold")
+                functions.col("btc_balance_quote"),
+                functions.col("usdt_balance_quote"),
+                functions.col("btc_total_quote_spent"),
+                functions.col("usdt_total_quote_spent"),
+                functions.col("btc_total_quote_returned"),
+                functions.col("usdt_total_quote_returned")
         );
     }
 
-    @Override
-    public Dataset<Row> loadPortfolio(Dataset<Row> trades, Dataset<Row> symbols, String ... additionalGroupingFields) {
-        return this.loadPortfolio(trades, symbols,
-                Arrays.stream(additionalGroupingFields).map(x -> functions.col(x)).collect(Collectors.toList()).toArray(new Column[additionalGroupingFields.length]));
-    }
-
-    @Override
-    public Dataset<Row> loadPortfolio(Dataset<Row> trades, Dataset<Row> symbols, Column ... additionalGroupingFields) {
-        List<Column> groupBy = new ArrayList<>();
-        groupBy.add(functions.col("baseAsset"));
-        groupBy.add(functions.col("quoteAsset"));
-        groupBy.addAll(Arrays.asList(additionalGroupingFields));
-
-        trades = trades
-                .groupBy(groupBy.toArray(new Column[groupBy.size()]))
-                .agg(
-                        functions.sum("balance_asset").as("balance_asset"),
-                        functions.sum("total_asset_purchased").as("total_asset_purchased"),
-                        functions.sum("total_asset_sold").as("total_asset_sold"),
-                        functions.sum("balance_quote").as("balance_quote"),
-                        functions.sum("total_quote_spent").as("total_quote_spent"),
-                        functions.sum("total_quote_returned").as("total_quote_returned"),
-                        functions.abs(functions.sum("balance_quote").divide(functions.sum("balance_asset"))).as("avg_price"),
-                        functions.abs(functions.sum("total_quote_spent").divide(functions.sum("total_asset_purchased"))).as("avg_buy_price"),
-                        functions.abs(functions.sum("total_quote_returned").divide(functions.sum("total_asset_sold"))).as("avg_sell_price"),
-                        functions.sum("btc_balance_asset").as("btc_balance_asset"),
-                        functions.sum("usdt_balance_asset").as("usdt_balance_asset"),
-                        functions.sum("btc_total_asset_purchased").as("btc_total_asset_purchased"),
-                        functions.sum("usdt_total_asset_purchased").as("usdt_total_asset_purchased"),
-                        functions.sum("btc_total_asset_sold").as("btc_total_asset_sold"),
-                        functions.sum("usdt_total_asset_sold").as("usdt_total_asset_sold")
-                );
-        return trades;
-    }
-
-    @Override
-    public Dataset<Row> joinPnlToPortfolio(Dataset<Row> trades, Dataset<Row> rates) {
-        Dataset<Row> latestDates = rates
-                .groupBy(functions.col("asset"), functions.col("quote"))
-                .agg(functions.max("date").as("date"),
-                        functions.col("asset"), functions.col("quote"));
-
-        Dataset<Row> pnl = rates
-                .join(latestDates,
-                        rates.col("date").equalTo(latestDates.col("date"))
-                        .and(rates.col("asset").equalTo(latestDates.col("asset")))
-                        .and(rates.col("quote").equalTo(latestDates.col("quote"))))
-                .join(trades,
-                        rates.col("date").equalTo(latestDates.col("date"))
-                                .and(trades.col("baseAsset").equalTo(latestDates.col("asset")))
-                                .and(trades.col("quoteAsset").equalTo(latestDates.col("quote"))))
-                ;
-        return pnl
-                .withColumn("pnl", (rates.col("rate").divide(functions.col("avg_price")).minus(functions.lit(1)))
-                        .as("pnl"))
-                .withColumn("safe_pnl", (rates.col("rate").divide(functions.col("avg_buy_price")).minus(functions.lit(1)))
-                        .as("safe_pnl"))
-                .select(
-                rates.col("asset"),
-                rates.col("quote"),
-                rates.col("rate"),
-                functions.col("pnl"),
-                trades.col("avg_buy_price"),
-                trades.col("avg_sell_price"),
-                trades.col("avg_price"),
-                functions.col("safe_pnl"),
-                trades.col("balance_asset"),
-                (trades.col("total_asset_purchased")
-                    .multiply(functions.col("rate")))
-                        .minus(trades.col("total_asset_purchased")
-                                .multiply(functions.col("avg_buy_price")))
-                        .as("quote_value_by_pnl"),
-                (trades.col("balance_asset")
-                        .multiply(functions.col("rate")))
-                        .minus(trades.col("balance_asset")
-                                .multiply(functions.col("avg_price")))
-                        .as("quote_value_by_safe_pnl"),
-                trades.col("total_asset_purchased"),
-                trades.col("total_asset_sold"),
-                trades.col("balance_quote"),
-                trades.col("total_quote_spent"),
-                trades.col("total_quote_returned"),
-                trades.col("btc_balance_asset"),
-                trades.col("usdt_balance_asset"),
-                trades.col("btc_total_asset_purchased"),
-                trades.col("usdt_total_asset_purchased"),
-                trades.col("btc_total_asset_sold"),
-                trades.col("usdt_total_asset_sold")
-        );
-    }
 }

@@ -98,6 +98,7 @@ public class Main {
         Dataset<Row> symbols = spark.createDataFrame(exchangeInfo.getSymbols(), SymbolDTO.class);
 
         ratesWriter.write(cryptoCurrencies, "trades.rates");
+        ratesWriter.write(tradeHistorySparkService.loadMaxRates(cryptoCurrencies), "trades.max_rates");
 
 
         ratesSparkService.initCurrenciesTables();
@@ -111,30 +112,6 @@ public class Main {
 
 
         Dataset<Row> tradeHistory = tradeHistorySparkService.loadTradeHistory(symbols, cryptoCurrencies);
-        //Dataset<Row> trades = tradeHistorySparkService.joinPnlToPortfolio(tradeHistory, cryptoCurrencies);
         ratesWriter.write(tradeHistory, "trades.trade_history");
-//        ratesWriter.write(
-//                tradeHistorySparkService.joinPnlToPortfolio(tradeHistorySparkService.loadPortfolio(tradeHistory, symbols, new String[0]), cryptoCurrencies),
-//                "trades.portfolio_total");
-//        ratesWriter.write(
-//                tradeHistorySparkService.joinPnlToPortfolio(tradeHistorySparkService.loadPortfolio(tradeHistory, symbols,
-//                functions.date_trunc("month", functions.col("date")).as("date")), cryptoCurrencies),
-//                "trades.portfolio_by_month");
-//
-//        united.createOrReplaceTempView("mycurrencies3");
-//        this.spark.sql("SELECT asset, quote, max(date) max_date, min(date) min_date, max(rate) max_rate, min(rate) min_rate " +
-//                        "FROM mycurrencies3 GROUP BY asset, quote")
-//                .select(
-//                        functions.col("asset"),
-//                        functions.col("quote"),
-//                        functions.col("max_date"),
-//                        functions.col("min_date"),
-//                        functions.col("max_rate"),
-//                        functions.col("min_rate")
-//                ).orderBy(
-//                        functions.col("asset"),
-//                        functions.col("quote")
-//                ).show(500);
-
     }
 }
