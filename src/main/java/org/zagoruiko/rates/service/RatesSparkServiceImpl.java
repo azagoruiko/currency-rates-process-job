@@ -1,11 +1,8 @@
 package org.zagoruiko.rates.service;
 
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.*;
-import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.expressions.Window;
 import org.apache.spark.sql.expressions.WindowSpec;
-import org.apache.spark.sql.types.StructType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class SparkServiceImpl implements SparkService {
+public class RatesSparkServiceImpl implements RatesSparkService {
 
     private SparkSession spark;
     @Autowired
@@ -30,10 +27,24 @@ public class SparkServiceImpl implements SparkService {
                 "(Timestamp DATE,High FLOAT,Low FLOAT,Open FLOAT,Close FLOAT) " +
                 "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' " +
                 "PARTITIONED BY (asset STRING, quote STRING) " +
-                "LOCATION 's3a://currency/binance/' " +
+                "LOCATION 's3a://currency/exchange=binance/' " +
                 "tblproperties (\"skip.header.line.count\"=\"1\")");
 
         repairCurrenciesTables();
+    }
+
+    @Override
+    public void initCryptoRates() {
+        //spark.sql("DROP TABLE currencies");
+
+        spark.sql("CREATE EXTERNAL TABLE IF NOT EXISTS crypto_rates " +
+                "(Timestamp DATE,High FLOAT,Low FLOAT,Open FLOAT,Close FLOAT) " +
+                "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' " +
+                "PARTITIONED BY (exchange STRING, asset STRING, quote STRING) " +
+                "LOCATION 's3a://currency/' " +
+                "tblproperties (\"skip.header.line.count\"=\"1\")");
+
+        repairCryptoRatesTables();
     }
 
     @Override
@@ -48,6 +59,11 @@ public class SparkServiceImpl implements SparkService {
                 "tblproperties (\"skip.header.line.count\"=\"1\")");
 
         repairInvestingTables();
+    }
+
+    @Override
+    public void repairCryptoRatesTables() {
+        spark.sql("MSCK REPAIR TABLE crypto_rates").select().show();
     }
 
     @Override
@@ -107,7 +123,6 @@ public class SparkServiceImpl implements SparkService {
 
     @Override
     public Dataset<Row> selectInvestingOverUSDTRate() {
-
         return spark.sql("SELECT COALESCE(ic.asset, (CASE WHEN bc.asset = 'USDT' THEN 'USD' ELSE bc.asset END)) asset, " +
                 "COALESCE(ic.quote, (CASE WHEN bc.quote = 'USDT' THEN 'USD' ELSE bc.quote END)) quote,  " +
                 "COALESCE(to_date(bc.timestamp, 'yyyy-MM-dd'), to_date(ic.Date, 'MM/dd/yyyy')) date, " +
@@ -133,8 +148,22 @@ public class SparkServiceImpl implements SparkService {
     }
 
     @Override
-    public Dataset processCurrencies() {
-        Dataset united = this.selectInvestingOverUSDTRate();
+    public Dataset<Row> selectCryptoRates() {
+        return spark.sql("SELECT * FROM crypto_rates")
+                .withColumn("date", functions.to_date(functions.col("Timestamp"), "yyyy-MM-dd"))
+                .select(
+                        functions.col("asset"),
+                        functions.col("quote"),
+                        functions.col("date"),
+                        functions.col("Close").as("rate")
+                        //functions.col("exchange")
+                );
+    }
+
+    @Override
+    public Dataset processCurrencies(String ... currencies) {
+        Dataset united = this.selectInvestingOverUSDTRate()
+                .filter(functions.col("asset").isin(currencies).or(functions.col("quote").isin(currencies)));
         united.createOrReplaceTempView("mycurrencies");
         List<Dataset<Row>> datasetsToUnion = new ArrayList<>();
         class SwappingTriplet {
@@ -163,7 +192,8 @@ public class SparkServiceImpl implements SparkService {
 
         for (SwappingTriplet swapper : new SwappingTriplet[]{
                 new SwappingTriplet("SOL", "UAH", "USD"),
-                new SwappingTriplet("BTC", "UAH", "USD"),
+                //new SwappingTriplet("BTC", "UAH", "USD"),
+                new SwappingTriplet("BTC", "CZK", "USD"),
         }) {
             Dataset swapped = spark.sql("SELECT src.asset, trg.quote, src.date, trg.rate * src.rate as czk_uah " +
                     "FROM mycurrencies_swapped src " +
@@ -181,6 +211,7 @@ public class SparkServiceImpl implements SparkService {
                 new String[]{"BTC", "USD"},
                 new String[]{"BTC", "UAH"},
                 new String[]{"BTC", "EUR"},
+                new String[]{"BTC", "CZK"},
                 new String[]{"EUR", "CZK"},
                 new String[]{"EUR", "UAH"},
         }) {
@@ -243,6 +274,58 @@ public class SparkServiceImpl implements SparkService {
                 functions.col("asset"),
                 functions.col("quote")
         );
+
+        return united;
+    }
+
+    @Override
+    public Dataset processExchangeCurrencies() {
+        Dataset united = this.selectCryptoRates();
+
+        united.createOrReplaceTempView("mycurrencies2");
+        Dataset<Row> dates = this.spark.sql("SELECT asset, quote, max(date) max_date, min(date) min_date " +
+                        "FROM mycurrencies2 " +
+                        "GROUP BY asset, quote ")
+                .withColumn("date", functions.explode(functions.expr("sequence(min_date, max_date, interval 1 day)")));
+
+        dates.createOrReplaceTempView("dates");
+
+        Dataset enriched = spark.sql("SELECT dat.asset, dat.quote, cur.date, dat.date, coalesce(cur.date, dat.date) the_date, cur.rate " +
+                        "FROM dates dat " +
+                        "LEFT JOIN mycurrencies2 cur " +
+                        "ON dat.date=cur.date AND dat.asset=cur.asset AND dat.quote=cur.quote")
+                .repartition(
+                        functions.col("asset"),
+                        functions.col("quote")
+                );
+
+        WindowSpec window = Window
+                .partitionBy("dat.asset", "dat.quote")
+                .orderBy("dat.asset", "dat.quote", "dat.date");
+
+        enriched = enriched.withColumn("last_rate", functions.coalesce(
+                        functions.col("cur.rate"),
+                        functions.lag("cur.rate", 1).over(window),
+                        functions.lag("cur.rate", 2).over(window),
+                        functions.lag("cur.rate", 3).over(window)
+                ))
+                .filter(functions.col("cur.date").isNull())
+                .orderBy(functions.col("dat.asset"),
+                        functions.col("dat.quote"),
+                        functions.col("dat.date"))
+                .select(functions.col("asset"),
+                        functions.col("quote"),
+                        functions.col("the_date"),
+                        functions.col("last_rate")
+                );
+
+
+        united = united.union(enriched)
+                .dropDuplicates()
+                .repartition(
+                        functions.col("asset"),
+                        functions.col("quote")
+                );
 
         return united;
     }

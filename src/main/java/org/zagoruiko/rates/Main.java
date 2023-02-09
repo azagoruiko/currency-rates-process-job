@@ -1,19 +1,20 @@
 package org.zagoruiko.rates;
 
 import org.apache.spark.sql.*;
-import org.codehaus.jackson.map.JsonMappingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.zagoruiko.rates.service.SparkService;
+import org.zagoruiko.rates.client.BinanceClient;
+import org.zagoruiko.rates.client.dto.ExchangeInfoDTO;
+import org.zagoruiko.rates.client.dto.SymbolDTO;
+import org.zagoruiko.rates.service.RatesSparkService;
+import org.zagoruiko.rates.service.TradeHistorySparkService;
 import org.zagoruiko.rates.writer.DatasetWriter;
 
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.text.Format;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -42,15 +43,28 @@ public class Main {
     @Autowired
     @Qualifier("postgres.jdbc.password")
     private String jdbcPassword;
-    private SparkService sparkService;
+    private RatesSparkService ratesSparkService;
+    private TradeHistorySparkService tradeHistorySparkService;
     private SparkSession spark;
 
     private DatasetWriter ratesWriter;
     private JdbcTemplate jdbcTemplate;
 
+    private BinanceClient binanceClient;
+
     @Autowired
-    public void setSparkService(SparkService sparkService) {
-        this.sparkService = sparkService;
+    public void setSparkService(RatesSparkService ratesSparkService) {
+        this.ratesSparkService = ratesSparkService;
+    }
+
+    @Autowired
+    public void setBinanceClient(BinanceClient binanceClient) {
+        this.binanceClient = binanceClient;
+    }
+
+    @Autowired
+    public void setTradeHistorySparkService(TradeHistorySparkService tradeHistorySparkService) {
+        this.tradeHistorySparkService = tradeHistorySparkService;
     }
 
     @Autowired
@@ -70,16 +84,6 @@ public class Main {
         this.spark = sparkSession;
     }
     public static void main(String[] args) throws IOException, ParseException {
-        System.out.println(String.join(",", args));
-
-        ClassLoader cl = ClassLoader.getSystemClassLoader();
-
-        URL[] urls = ((URLClassLoader)cl).getURLs();
-
-        for(URL url: urls){
-            System.out.println(url.getFile());
-        }
-
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
         context.scan(Main.class.getPackage().getName());
         context.refresh();
@@ -87,29 +91,27 @@ public class Main {
     }
 
     public void run(String[] args) {
-        sparkService.initCurrenciesTables();
-        sparkService.initInvestingTables();
-        sparkService.repairCurrenciesTables();
-        sparkService.repairInvestingTables();
+        ExchangeInfoDTO exchangeInfo = this.binanceClient.getExchangeInfo();
+
+        ratesSparkService.initCryptoRates();
+        Dataset<Row> cryptoCurrencies = this.ratesSparkService.processExchangeCurrencies();
+        Dataset<Row> symbols = spark.createDataFrame(exchangeInfo.getSymbols(), SymbolDTO.class);
+
+        ratesWriter.write(cryptoCurrencies, "trades.rates");
+        ratesWriter.write(tradeHistorySparkService.loadMaxRates(cryptoCurrencies), "trades.max_rates");
 
 
-        Dataset<Row> united = sparkService.processCurrencies();
+        ratesSparkService.initCurrenciesTables();
+        ratesSparkService.initInvestingTables();
+        ratesSparkService.repairCurrenciesTables();
+        ratesSparkService.repairInvestingTables();
+
+
+        Dataset<Row> united = ratesSparkService.processCurrencies("USD", "EUR", "UAH", "CZK", "BTC");
         ratesWriter.write(united, "expenses.rates");
 
-        united.createOrReplaceTempView("mycurrencies3");
-        this.spark.sql("SELECT asset, quote, max(date) max_date, min(date) min_date, max(rate) max_rate, min(rate) min_rate " +
-                        "FROM mycurrencies3 GROUP BY asset, quote")
-                .select(
-                        functions.col("asset"),
-                        functions.col("quote"),
-                        functions.col("max_date"),
-                        functions.col("min_date"),
-                        functions.col("max_rate"),
-                        functions.col("min_rate")
-                ).orderBy(
-                        functions.col("asset"),
-                        functions.col("quote")
-                ).show(500);
 
+        Dataset<Row> tradeHistory = tradeHistorySparkService.loadTradeHistory(symbols, cryptoCurrencies);
+        ratesWriter.write(tradeHistory, "trades.trade_history");
     }
 }

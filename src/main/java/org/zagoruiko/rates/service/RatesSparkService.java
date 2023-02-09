@@ -2,15 +2,18 @@ package org.zagoruiko.rates.service;
 
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
 
 import java.sql.Date;
 
-public interface SparkService {
+public interface RatesSparkService {
 
     void initCurrenciesTables();
 
+    void initCryptoRates();
+
     void initInvestingTables();
+
+    void repairCryptoRatesTables();
 
     void repairCurrenciesTables();
 
@@ -24,7 +27,11 @@ public interface SparkService {
 
     Dataset<Row> selectInvestingOverUSDTRate();
 
-    Dataset processCurrencies();
+    Dataset<Row> selectCryptoRates();
+
+    Dataset processCurrencies(String ... currencies);
+
+    Dataset processExchangeCurrencies();
 
     Date selectMaxDate(String source, String asset, String quote);
 }
