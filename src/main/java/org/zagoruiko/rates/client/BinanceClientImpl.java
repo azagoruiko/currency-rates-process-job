@@ -1,5 +1,6 @@
 package org.zagoruiko.rates.client;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -28,7 +29,8 @@ public class BinanceClientImpl implements BinanceClient {
             HttpEntity entity = response.getEntity();
             if (entity != null) {
                 // return it as a String
-                ObjectMapper om = new ObjectMapper();
+                ObjectMapper om = new ObjectMapper()
+                        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
                 return om.readValue(EntityUtils.toString(entity), ExchangeInfoDTO.class);
             }
         } catch (IOException e) {
