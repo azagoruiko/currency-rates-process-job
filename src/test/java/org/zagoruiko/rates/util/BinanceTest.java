@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-class BinanceTest {
+public class BinanceTest {
 
     @Test
     void klines2CSVMap() throws IOException {
