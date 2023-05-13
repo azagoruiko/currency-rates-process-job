@@ -164,7 +164,7 @@
                     <!-- MainClass in mainfest make a executable jar -->
                     <archive>
                         <manifest>
-                            <mainClass>ua.org.zagoruiko.expenses.spark.etl.ImportPb</mainClass>
+                            <mainClass>org.zagoruiko.rates.Main</mainClass>
                         </manifest>
                     </archive>
 
