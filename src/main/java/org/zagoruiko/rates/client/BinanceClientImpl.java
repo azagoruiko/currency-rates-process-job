@@ -7,16 +7,9 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
-import org.codehaus.jackson.jaxrs.JacksonJsonProvider;
-import org.glassfish.jersey.client.ClientConfig;
 import org.springframework.stereotype.Service;
 import org.zagoruiko.rates.client.dto.ExchangeInfoDTO;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 
 @Service
