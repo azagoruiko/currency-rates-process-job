@@ -36,7 +36,7 @@ EOH
 
       resources {
         cpu    = 1500
-        memory = 1500
+        memory = 3500
       }
     }
   }
