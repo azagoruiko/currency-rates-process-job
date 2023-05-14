@@ -1,30 +1,41 @@
 package org.zagoruiko.rates.client;
 
-import org.codehaus.jackson.jaxrs.JacksonJsonProvider;
-import org.glassfish.jersey.client.ClientConfig;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.springframework.stereotype.Service;
 import org.zagoruiko.rates.client.dto.ExchangeInfoDTO;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
+import java.io.IOException;
 
 @Service
 public class BinanceClientImpl implements BinanceClient {
-    private ClientConfig cfg = new ClientConfig();
-    private Client client;
+    private CloseableHttpClient client;
 
     public BinanceClientImpl() {
-        this.cfg.register(JacksonJsonProvider.class);
-        this.client = ClientBuilder.newBuilder().withConfig(this.cfg).build();
+        this.client = HttpClients.createDefault();
     }
 
     @Override
     public ExchangeInfoDTO getExchangeInfo() {
-        WebTarget target = client.target("https://api.binance.com/api/v3/exchangeInfo");
-        Invocation.Builder ib = target.request(MediaType.APPLICATION_JSON);
-        return ib.get( ExchangeInfoDTO.class);
+        HttpGet request = new HttpGet("https://api.binance.com/api/v3/exchangeInfo");
+        try {
+            CloseableHttpResponse response = this.client.execute(request);
+            HttpEntity entity = response.getEntity();
+            if (entity != null) {
+                // return it as a String
+                ObjectMapper om = new ObjectMapper()
+                        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+                return om.readValue(EntityUtils.toString(entity), ExchangeInfoDTO.class);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
     }
 }
