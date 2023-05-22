@@ -16,4 +16,4 @@ echo "RUNNING MASTER $SPARK_MASTER"
   --conf spark.hadoop.javax.jdo.option.ConnectionPassword=${POSTGRES_JDBC_PASSWORD} \
   --conf spark.executor.instances=2 \
   --conf spark.cores.max=6 \
-  https://objectstorage.us-ashburn-1.oraclecloud.com/p/d2LICgn8y9k6PNuBxtESvVlBQPRt3OUQQKTRs_FhEMUybgbQJtBtO0wq_4gxzJZK/n/idnbbkjxiqcc/b/jars/o/rates-trades.jar
+  $S3_SHARED_BUCKET/rates-trades.jar

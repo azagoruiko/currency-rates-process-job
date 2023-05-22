@@ -34,6 +34,7 @@ POSTGRES_JDBC_PASSWORD="{{ key "postgres.jdbc.password" }}"
 S3_ENDPOINT="{{ key "expenses/object/storage/fs.s3a.endpoint" }}"
 S3_ACCESS_KEY="{{ key "expenses/object/storage/fs.s3a.access.key" }}"
 S3_SECRET_KEY="{{ key "expenses/object/storage/fs.s3a.secret.key" }}"
+S3_SHARED_BUCKET="{{ key "expenses/object/storage/shared_bucket" }}"
 
 SERVICE_MATCHER_BASE_URL="{{ key "expenses/service/matcher/base_url" }}"
 SERVICE_GOALS_BASE_URL="{{ key "telegram/bot/accounter/goals.base.url" }}"
@@ -55,7 +56,7 @@ EOH
         command = "bash"
         args = [
           "/app/run.sh",
-          "0.1.8",
+          "0.1.9",
         ]
       }
 
