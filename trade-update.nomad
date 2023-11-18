@@ -52,17 +52,17 @@ EOH
       config {
         network_mode = "host"
         privileged = true
-        image = "10.8.0.5:5000/rates-update:0.1.10"
+        image = "10.8.0.5:5000/rates-update:0.1.11"
         command = "bash"
         args = [
           "/app/run.sh",
-          "0.1.10",
+          "0.1.11",
         ]
       }
 
       resources {
         cpu    = 1500
-        memory = 3500
+        memory = 2500
       }
     }
   }
