@@ -93,6 +93,9 @@ public class Main {
 
     public void run(String[] args) {
         ExchangeInfoDTO exchangeInfo = this.binanceClient.getExchangeInfo();
+        if (exchangeInfo == null || exchangeInfo.getSymbols() == null) {
+            throw new RuntimeException("exchangeInfo = " + exchangeInfo);
+        }
 
         ratesSparkService.initCryptoRates();
         Dataset<Row> cryptoCurrencies = this.ratesSparkService.processExchangeCurrencies();
