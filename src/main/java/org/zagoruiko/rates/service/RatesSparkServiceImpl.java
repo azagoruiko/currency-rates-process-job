@@ -121,6 +121,10 @@ public class RatesSparkServiceImpl implements RatesSparkService {
         );
     }
 
+    public SparkSession getSpark() {
+        return spark;
+    }
+
     @Override
     public Dataset<Row> selectInvestingOverUSDTRate() {
         return spark.sql("SELECT COALESCE(ic.asset, (CASE WHEN bc.asset = 'USDT' THEN 'USD' ELSE bc.asset END)) asset, " +

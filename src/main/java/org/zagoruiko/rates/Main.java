@@ -19,6 +19,7 @@ import java.text.Format;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @PropertySource(value = "classpath:application.properties")
@@ -95,7 +96,8 @@ public class Main {
 
         ratesSparkService.initCryptoRates();
         Dataset<Row> cryptoCurrencies = this.ratesSparkService.processExchangeCurrencies();
-        Dataset<Row> symbols = spark.createDataFrame(exchangeInfo.getSymbols(), SymbolDTO.class);
+        System.err.println(exchangeInfo.getSymbols().stream().map(s -> s.getBaseAsset() + " - " + s.getQuoteAsset()).collect(Collectors.joining(",")));
+        Dataset<Row> symbols = ratesSparkService.getSpark().createDataFrame(exchangeInfo.getSymbols(), SymbolDTO.class);
 
         ratesWriter.write(cryptoCurrencies, "trades.rates");
         ratesWriter.write(tradeHistorySparkService.loadMaxRates(cryptoCurrencies), "trades.max_rates");

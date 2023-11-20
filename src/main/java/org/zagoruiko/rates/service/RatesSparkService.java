@@ -2,6 +2,7 @@ package org.zagoruiko.rates.service;
 
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 
 import java.sql.Date;
 
@@ -34,4 +35,6 @@ public interface RatesSparkService {
     Dataset processExchangeCurrencies();
 
     Date selectMaxDate(String source, String asset, String quote);
+
+    SparkSession getSpark();
 }
