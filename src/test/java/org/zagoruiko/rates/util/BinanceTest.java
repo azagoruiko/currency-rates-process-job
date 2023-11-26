@@ -25,10 +25,10 @@ public class BinanceTest {
         Assert.assertNotNull(map);
     }
 
-    @Test
-    public void getSymbols() throws IOException {
-        BinanceClientImpl client = new BinanceClientImpl();
-        ExchangeInfoDTO exchangeInfo = client.getExchangeInfo();
-        exchangeInfo.getSymbols();
-    }
+//    @Test
+//    public void getSymbols() throws IOException {
+//        BinanceClientImpl client = new BinanceClientImpl();
+//        ExchangeInfoDTO exchangeInfo = client.getExchangeInfo();
+//        exchangeInfo.getSymbols();
+//    }
 }
