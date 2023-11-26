@@ -127,29 +127,29 @@ public class RatesSparkServiceImpl implements RatesSparkService {
 
     @Override
     public Dataset<Row> selectInvestingOverUSDTRate() {
-//        return spark.sql("SELECT COALESCE(ic.asset, (CASE WHEN bc.asset = 'USDT' THEN 'USD' ELSE bc.asset END)) asset, " +
-//                "COALESCE(ic.quote, (CASE WHEN bc.quote = 'USDT' THEN 'USD' ELSE bc.quote END)) quote,  " +
-//                "COALESCE(to_date(bc.timestamp, 'yyyy-MM-dd'), to_date(ic.Date, 'MM/dd/yyyy')) date, " +
-//                "COALESCE(COALESCE((CASE " +
-//                "   WHEN (ic.quote='UAH' AND ic.asset='USD' AND bc.Close is NULL) " +
-//                "   OR (ic.quote='BTC' AND ic.asset='USD' AND bc.Close is NULL) " +
-//                "   OR (ic.quote='USD' AND ic.asset='EUR' AND bc.Close is NULL) " +
-//                "   THEN ic.Price " +
-//                "   ELSE bc.Close END), bc.Close), ic.Price) rate, " +
-//                "ic.Price ic_rate, " +
-//                "bc.Close bc_rate, " +
-//                "to_date(ic.Date, 'MM/dd/yyyy') ic_date " +
-//                "FROM binance_currencies bc " +
-//                "FULL JOIN investing_currencies ic " +
-//                "ON ic.asset = (CASE WHEN bc.asset = 'USDT' THEN 'USD' ELSE bc.asset END) " +
-//                "AND ic.quote = (CASE WHEN bc.quote = 'USDT' THEN 'USD' ELSE bc.quote END) " +
-//                "AND to_date(ic.Date, 'MM/dd/yyyy') = to_date(bc.timestamp, 'yyyy-MM-dd')").select(
-//                functions.col("asset"),
-//                functions.col("quote"),
-//                functions.col("date"),
-//                functions.col("rate")
-//        );
-        return spark.sql("SELECT asset, quote, date, rate FROM currencylayer");
+        Dataset<Row> old = spark.sql("SELECT COALESCE(ic.asset, (CASE WHEN bc.asset = 'USDT' THEN 'USD' ELSE bc.asset END)) asset, " +
+                "COALESCE(ic.quote, (CASE WHEN bc.quote = 'USDT' THEN 'USD' ELSE bc.quote END)) quote,  " +
+                "COALESCE(to_date(bc.timestamp, 'yyyy-MM-dd'), to_date(ic.Date, 'MM/dd/yyyy')) date, " +
+                "COALESCE(COALESCE((CASE " +
+                "   WHEN (ic.quote='UAH' AND ic.asset='USD' AND bc.Close is NULL) " +
+                "   OR (ic.quote='BTC' AND ic.asset='USD' AND bc.Close is NULL) " +
+                "   OR (ic.quote='USD' AND ic.asset='EUR' AND bc.Close is NULL) " +
+                "   THEN ic.Price " +
+                "   ELSE bc.Close END), bc.Close), ic.Price) rate, " +
+                "ic.Price ic_rate, " +
+                "bc.Close bc_rate, " +
+                "to_date(ic.Date, 'MM/dd/yyyy') ic_date " +
+                "FROM binance_currencies bc " +
+                "FULL JOIN investing_currencies ic " +
+                "ON ic.asset = (CASE WHEN bc.asset = 'USDT' THEN 'USD' ELSE bc.asset END) " +
+                "AND ic.quote = (CASE WHEN bc.quote = 'USDT' THEN 'USD' ELSE bc.quote END) " +
+                "AND to_date(ic.Date, 'MM/dd/yyyy') = to_date(bc.timestamp, 'yyyy-MM-dd')").select(
+                functions.col("asset"),
+                functions.col("quote"),
+                functions.col("date"),
+                functions.col("rate")
+        );
+        return old.union(spark.sql("SELECT asset, quote, date, rate FROM currencylayer"));
     }
 
     @Override
