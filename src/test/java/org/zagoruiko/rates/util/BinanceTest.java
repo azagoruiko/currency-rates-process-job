@@ -3,6 +3,8 @@ package org.zagoruiko.rates.util;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.junit.Assert;
 import org.junit.Test;
+import org.zagoruiko.rates.client.BinanceClientImpl;
+import org.zagoruiko.rates.client.dto.ExchangeInfoDTO;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,5 +23,12 @@ public class BinanceTest {
             System.out.println(entry.getValue().stream().collect(Collectors.joining("\n")));
         }
         Assert.assertNotNull(map);
+    }
+
+    @Test
+    public void getSymbols() throws IOException {
+        BinanceClientImpl client = new BinanceClientImpl();
+        ExchangeInfoDTO exchangeInfo = client.getExchangeInfo();
+        exchangeInfo.getSymbols();
     }
 }
