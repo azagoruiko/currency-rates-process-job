@@ -149,7 +149,7 @@ public class RatesSparkServiceImpl implements RatesSparkService {
                 functions.col("date"),
                 functions.col("rate")
         );
-        return old.union(spark.sql("SELECT asset, quote, date, rate FROM currencylayer"));
+        return old; //old.union(spark.sql("SELECT asset, quote, date, rate FROM currencylayer"));
     }
 
     @Override
