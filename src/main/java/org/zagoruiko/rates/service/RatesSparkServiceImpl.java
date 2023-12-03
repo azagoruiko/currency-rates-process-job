@@ -26,9 +26,9 @@ public class RatesSparkServiceImpl implements RatesSparkService {
 
     @Override
     public void initCurrenciesTables() {
-        //spark.sql("DROP TABLE currencies");
+        spark.sql("DROP TABLE currencylayer");
         spark.sql("CREATE EXTERNAL TABLE IF NOT EXISTS currencylayer " +
-                "(date DATE,ast FLOAT,qout FLOAT,rate FLOAT) " +
+                "(date DATE,ast STRING,qout STRING,rate FLOAT) " +
                 "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' " +
                 "PARTITIONED BY (asset STRING, quote STRING) " +
                 "LOCATION 's3a://currency/currencylayer/' " +
