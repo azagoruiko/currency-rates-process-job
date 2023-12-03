@@ -356,7 +356,7 @@ public class RatesSparkServiceImpl implements RatesSparkService {
 
         Dataset<Row> unioned = source.unionAll(sameAsset).unionAll(sameQuote).unionAll(swapped);
         WindowSpec window = Window.partitionBy("date", "asset", "quote").orderBy("prio");
-        return unioned.withColumn("rank", functions.row_number().over(window)).filter(functions.col("rank").equalTo(1)).drop("rank");
+        return unioned.withColumn("rank", functions.row_number().over(window)).filter(functions.col("rank").equalTo(1)).drop("rank", "prio");
     }
 
     @Override
