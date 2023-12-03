@@ -92,6 +92,13 @@ public class Main {
     }
 
     public void run(String[] args) {
+
+        ratesSparkService.initCurrenciesTables();
+
+        writeJdbcTable(ratesSparkService.processCurrencyLayer(), "expenses.rates");
+
+        System.exit(0);
+        //====================
         ExchangeInfoDTO exchangeInfo = this.binanceClient.getExchangeInfo();
         if (exchangeInfo == null || exchangeInfo.getSymbols() == null) {
             throw new RuntimeException("exchangeInfo = " + exchangeInfo);
@@ -112,11 +119,14 @@ public class Main {
         ratesSparkService.repairInvestingTables();
 
 
-        Dataset<Row> united = ratesSparkService.processCurrencies("USD", "EUR", "UAH", "CZK", "BTC");
-        ratesWriter.write(united, "expenses.rates");
+        writeJdbcTable(ratesSparkService.processCurrencies("USD", "EUR", "UAH", "CZK", "BTC"), "expenses.rates");
 
 
-        Dataset<Row> tradeHistory = tradeHistorySparkService.loadTradeHistory(symbols, cryptoCurrencies);
-        ratesWriter.write(tradeHistory, "trades.trade_history");
+        writeJdbcTable(tradeHistorySparkService.loadTradeHistory(symbols, cryptoCurrencies), "trades.trade_history");
+    }
+
+    private void writeJdbcTable(Dataset<Row> dataset, String table) {
+        Dataset<Row> tradeHistory = dataset;
+        ratesWriter.write(tradeHistory, table);
     }
 }

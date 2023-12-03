@@ -8,6 +8,7 @@ import java.sql.Date;
 
 public interface RatesSparkService {
 
+    void repairHiveTable(String tableName);
     void initCurrenciesTables();
 
     void initCryptoRates();
@@ -33,6 +34,7 @@ public interface RatesSparkService {
     Dataset processCurrencies(String ... currencies);
 
     Dataset processExchangeCurrencies();
+    Dataset processCurrencyLayer();
 
     Date selectMaxDate(String source, String asset, String quote);
 

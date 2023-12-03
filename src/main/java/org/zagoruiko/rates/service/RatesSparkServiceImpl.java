@@ -20,8 +20,19 @@ public class RatesSparkServiceImpl implements RatesSparkService {
     }
 
     @Override
+    public void repairHiveTable(String tableName) {
+        spark.sql(String.format("MSCK REPAIR TABLE %s", tableName)).select().show();
+    }
+
+    @Override
     public void initCurrenciesTables() {
         //spark.sql("DROP TABLE currencies");
+        spark.sql("CREATE EXTERNAL TABLE IF NOT EXISTS currencylayer " +
+                "(date DATE,ast FLOAT,qout FLOAT,rate FLOAT) " +
+                "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' " +
+                "PARTITIONED BY (asset STRING, quote STRING) " +
+                "LOCATION 's3a://currency/currencylayer/' " +
+                "");
 
         spark.sql("CREATE EXTERNAL TABLE IF NOT EXISTS binance_currencies " +
                 "(Timestamp DATE,High FLOAT,Low FLOAT,Open FLOAT,Close FLOAT) " +
@@ -63,17 +74,18 @@ public class RatesSparkServiceImpl implements RatesSparkService {
 
     @Override
     public void repairCryptoRatesTables() {
-        spark.sql("MSCK REPAIR TABLE crypto_rates").select().show();
+        repairHiveTable("crypto_rates");
     }
 
     @Override
     public void repairCurrenciesTables() {
-        spark.sql("MSCK REPAIR TABLE binance_currencies").select().show();
+        repairHiveTable("binance_currencies");
+        repairHiveTable("currencylayer");
     }
 
     @Override
     public void repairInvestingTables() {
-        spark.sql("MSCK REPAIR TABLE investing_currencies").select().show();
+        repairHiveTable("investing_currencies");
     }
 
 
@@ -333,6 +345,18 @@ public class RatesSparkServiceImpl implements RatesSparkService {
                 );
 
         return united;
+    }
+
+    @Override
+    public Dataset processCurrencyLayer() {
+        Dataset<Row> source = spark.sql("SELECT date, asset, quote, rate, 1 as prio from currencylayer");
+        Dataset<Row> sameAsset = spark.sql("SELECT date, asset, asset as quote, 1.0 as rate, 2 as prio from currencylayer");
+        Dataset<Row> sameQuote = spark.sql("SELECT date, quote as asset, quote, 1.0 as rate, 3 as prio from currencylayer");
+        Dataset<Row> swapped = spark.sql("SELECT date, quote as asset, asset as quote, 1.0 / rate as rate, 2 as prio from currencylayer");
+
+        Dataset<Row> unioned = source.unionAll(sameAsset).unionAll(sameQuote).unionAll(swapped);
+        WindowSpec window = Window.partitionBy("date", "asset", "quote").orderBy("prio");
+        return unioned.withColumn("rank", functions.row_number().over(window)).filter(functions.col("rank").equalTo(1)).drop("rank");
     }
 
     @Override
