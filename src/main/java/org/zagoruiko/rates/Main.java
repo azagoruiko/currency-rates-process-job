@@ -119,7 +119,7 @@ public class Main {
         ratesSparkService.repairInvestingTables();
 
 
-        writeJdbcTable(ratesSparkService.processCurrencies("USD", "EUR", "UAH", "CZK", "BTC"), "expenses.rates");
+        //writeJdbcTable(ratesSparkService.processCurrencies("USD", "EUR", "UAH", "CZK", "BTC"), "expenses.rates");
 
 
         writeJdbcTable(tradeHistorySparkService.loadTradeHistory(symbols, cryptoCurrencies), "trades.trade_history");
